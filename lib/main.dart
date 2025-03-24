@@ -1,11 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'login_screen.dart';  // Yeni eklediğimiz dosyayı import et!
 
-void main() {
-  runApp(const MyApp());
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MaterialApp(home: LoginScreen()));
+}
+class MyApp extends StatelessWidget {
+  const MyApp({super.key}); // Burada "const" ekliyoruz.
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Firebase',
+      home: Scaffold(
+        appBar: AppBar(title: Text("Firebase Test")),
+        body: Center(child: Text("Firebase Başarıyla Kuruldu! 🚀")),
+      ),
+    );
+  }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
 
   // This widget is the root of your application.
   @override
@@ -33,7 +53,7 @@ class MyApp extends StatelessWidget {
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
-}
+
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -120,3 +140,4 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
