@@ -3,10 +3,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_page.dart';
 import 'home_page.dart';
+import 'calendar_page.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'journal_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Firebase burada başlıyor
+
+  await initializeDateFormatting(
+    'tr_TR',
+    null,
+  ); // 👈 Yerel tarih formatını başlat
+
   runApp(const MyApp());
 }
 
@@ -18,6 +27,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MyLog',
+      locale: const Locale('tr', 'TR'),
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -40,6 +50,13 @@ class MyApp extends StatelessWidget {
 
       home:
           const AuthPage(), // ← işte burası uygulama ilk açıldığında görülecek ekran
+      initialRoute: '/login',
+      routes: {
+        '/login': (context) => const AuthPage(),
+        '/home': (context) => const HomePage(),
+        '/planner': (context) => const CalendarPage(),
+        '/journal': (context) => const JournalPage(),
+      },
     );
   }
 }

@@ -33,12 +33,15 @@ dependencies:
 #alttaki iki satırı yeni ekledim.##
   firebase_core: ^2.25.4
   firebase_auth: ^4.17.3
+  intl: ^0.18.1  
+  table_calendar: ^3.0.9  # <-- Bu satırı ekle
+  cloud_firestore: ^4.8.2
 
   snowfall: ^0.0.2
+  
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  simple_animations: ^4.2.0
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +74,11 @@ flutter:
     - assets/analysis.png
     - assets/mindmap.png
     - assets/mylogos.png
+    - assets/snowflake.png
+    - assets/notebook_page.png
+    - assets/planner_background.png
+    - assets/notebook_page.png
+    
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

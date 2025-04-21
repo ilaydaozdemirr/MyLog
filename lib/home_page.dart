@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'snowfall_widget.dart';
 import 'snowfall_page.dart';
+import 'calendar_page.dart';
+import 'journal_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -143,7 +145,7 @@ class HomePage extends StatelessWidget {
     String routeName,
   ) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, routeName),
+      onTap: () => Navigator.of(context).pushNamed(routeName),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
