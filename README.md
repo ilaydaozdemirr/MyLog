@@ -1,9 +1,4 @@
-
-#MyLog
-
-A new Flutter project.
-
-## Getting Started
+# MYLOG 
 
 This project is a starting point for a Flutter application.
 
