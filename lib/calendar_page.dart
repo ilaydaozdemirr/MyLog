@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
+
   @override
   State<CalendarPage> createState() => _CalendarPageState();
 }
@@ -18,13 +19,14 @@ class _CalendarPageState extends State<CalendarPage> {
   String? secilenKategori;
 
   final List<String> kategoriler = [
-    'İş',
-    'Okul',
-    'Spor',
-    'Kişisel',
-    'Sağlık',
-    'Alışveriş',
+    'Job',
+    'School',
+    'Sport',
+    'Personal',
+    'Health',
+    'Shopping',
   ];
+
   final List<String> stickers = [
     '☀️',
     '⭐',
@@ -36,12 +38,45 @@ class _CalendarPageState extends State<CalendarPage> {
     '✨',
     '🔥',
     '🎯',
+
+    '🌈',
+    '🎵',
+    '🎨',
+    '🍀',
+    '🍕',
+    '☕',
+    '🍰',
+    '🌍',
+    '🪐',
+    '🧸',
+    '🎈',
+    '🚀',
+    '🌸',
+    '🌻',
+    '🌙',
+    '🌟',
+    '👑',
+    '🐾',
+    '🍂',
+    '💬',
+    '💡',
+    '⚡',
+    '🎂',
+    '🖋️',
+    '🎁',
+    '📚',
+    '🏆',
+    '💻',
+    '🧠',
+    '🧳',
   ];
+
   final List<Offset> stickerPositions = [];
   final List<String> stickerTypes = [];
   final List<Offset> postItPositions = [];
   final List<String> postItTexts = [];
   final List<bool> postItVisible = [];
+
   final TextEditingController todoController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
 
@@ -49,10 +84,10 @@ class _CalendarPageState extends State<CalendarPage> {
   Color selectedColor = Colors.yellow;
   final List<DrawnLine> lines = [];
   List<Offset> currentLine = [];
+
   Future<void> kaydetAjandaVerisi() async {
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
-
       final docRef = FirebaseFirestore.instance
           .collection('ajanda')
           .doc(uid)
@@ -61,102 +96,135 @@ class _CalendarPageState extends State<CalendarPage> {
 
       await docRef.set({
         'todos': todos,
+        'checked': todosChecked,
+        'kategoriler': todoKategorileri,
         'notlar': notesController.text,
         'postitler': postItTexts,
         'postitKonumlari':
             postItPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
+        'stickerler': stickerTypes,
+        'stickerKonumlari':
+            stickerPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
       });
+      // ✅ Kayıt başarılıysa mini dialog aç:
+      showDialog(
+        context: context,
+        barrierDismissible: false, // Tıklayınca hemen kapanmasın
+        builder: (BuildContext context) {
+          Future.delayed(const Duration(seconds: 1), () {
+            Navigator.of(context).pop(true); // 2 saniye sonra kapat
+          });
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            backgroundColor: Colors.white,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.check_circle, color: Colors.green, size: 60),
+                SizedBox(height: 20),
+                Text(
+                  "Agenda saved!",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      debugPrint("✅ Agenda saved successfully!");
     } catch (e) {
-      debugPrint("🔥 Kayıt sırasında hata: $e");
+      debugPrint("🔥 Error while saving the agenda: $e");
     }
   }
 
   Future<void> yukleAjandaVerisi() async {
-    Future<void> kaydetAjandaVerisi() async {
-      try {
-        final uid = FirebaseAuth.instance.currentUser!.uid;
-
-        final docRef = FirebaseFirestore.instance
-            .collection('ajanda')
-            .doc(uid)
-            .collection('gunler')
-            .doc(selectedDate.toIso8601String());
-
-        await docRef.set({
-          'todos': todos,
-          'checked': todosChecked,
-          'notlar': notesController.text,
-          'postitler': postItTexts,
-          'postitKonumlari':
-              postItPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
-        });
-      } catch (e) {
-        debugPrint("🔥 Kayıt sırasında hata: $e");
-      }
-    }
-
     try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
       final docRef = FirebaseFirestore.instance
           .collection('ajanda')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .doc(uid)
           .collection('gunler')
           .doc(selectedDate.toIso8601String());
 
       final snapshot = await docRef.get();
 
       if (snapshot.exists) {
-        final data = snapshot.data() ?? {};
+        final data = snapshot.data();
+        if (data != null) {
+          setState(() {
+            todos
+              ..clear()
+              ..addAll(List<String>.from(data['todos'] ?? []));
 
-        final List<String> loadedTodos = List<String>.from(data['todos'] ?? []);
+            todosChecked
+              ..clear()
+              ..addAll(
+                List<bool>.from(
+                  data['checked'] ?? List<bool>.filled(todos.length, false),
+                ),
+              );
 
-        final List<bool> loadedChecked =
-            data['checked'] != null
-                ? List<bool>.from(data['checked'])
-                : <bool>[];
-        final List<String> loadedKategoriler = List<String>.from(
-          data['kategoriler'] ?? [],
-        );
-        final List<String> loadedPostItTexts = List<String>.from(
-          data['postitler'] ?? [],
-        );
-        final List<Map<String, dynamic>> loadedPostItPositions =
-            List<Map<String, dynamic>>.from(data['postitKonumlari'] ?? []);
+            todoKategorileri
+              ..clear()
+              ..addAll(
+                List<String>.from(
+                  data['kategoriler'] ??
+                      List<String>.filled(todos.length, 'Genel'),
+                ),
+              );
 
-        setState(() {
-          todos.clear();
-          todos.addAll(loadedTodos);
+            notesController.text = data['notlar'] ?? '';
 
-          todosChecked.clear();
-          todosChecked.addAll(
-            (loadedChecked.length == loadedTodos.length)
-                ? loadedChecked
-                : List<bool>.filled(loadedTodos.length, false),
-          );
+            postItTexts
+              ..clear()
+              ..addAll(List<String>.from(data['postitler'] ?? []));
 
-          notesController.text = data['notlar'] ?? '';
+            postItPositions
+              ..clear()
+              ..addAll(
+                List<Map<String, dynamic>>.from(
+                  data['postitKonumlari'] ?? [],
+                ).map(
+                  (e) => Offset(
+                    (e['x'] as num).toDouble(),
+                    (e['y'] as num).toDouble(),
+                  ),
+                ),
+              );
 
-          postItTexts.clear();
-          postItTexts.addAll(loadedPostItTexts);
+            postItVisible
+              ..clear()
+              ..addAll(List<bool>.filled(postItTexts.length, true));
+            // 📌 YENİ EKLENDİ: Sticker veri yükleme
+            stickerTypes
+              ..clear()
+              ..addAll(List<String>.from(data['stickerler'] ?? []));
 
-          postItPositions.clear();
-          postItPositions.addAll(
-            loadedPostItPositions.map((e) {
-              final double x = (e['x'] as num).toDouble();
-              final double y = (e['y'] as num).toDouble();
-              return Offset(x, y);
-            }),
-          );
+            stickerPositions
+              ..clear()
+              ..addAll(
+                List<Map<String, dynamic>>.from(
+                  data['stickerKonumlari'] ?? [],
+                ).map(
+                  (e) => Offset(
+                    (e['x'] as num).toDouble(),
+                    (e['y'] as num).toDouble(),
+                  ),
+                ),
+              );
+          });
 
-          postItVisible.clear();
-          postItVisible.addAll(
-            List<bool>.filled(loadedPostItTexts.length, true),
-          );
-        });
+          debugPrint("✅ Ajanda verisi başarıyla yüklendi!");
+        }
       } else {
         _resetAjandaVerisi();
+        debugPrint("⚪ Ajanda boş, sıfırlandı.");
       }
     } catch (e) {
-      debugPrint("[AJANDA] Veri yüklenirken hata oluştu: $e");
+      debugPrint("🔥 Ajanda yüklerken hata: $e");
       _resetAjandaVerisi();
     }
   }
@@ -165,11 +233,22 @@ class _CalendarPageState extends State<CalendarPage> {
     setState(() {
       todos.clear();
       todosChecked.clear();
+      todoKategorileri.clear();
       notesController.clear();
       postItTexts.clear();
       postItPositions.clear();
       postItVisible.clear();
+
+      // 📌 YENİ EKLENDİ: Stickerları da sıfırla
+      stickerTypes.clear();
+      stickerPositions.clear();
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => yukleAjandaVerisi());
   }
 
   void _selectDate() async {
@@ -197,6 +276,52 @@ class _CalendarPageState extends State<CalendarPage> {
         secilenKategori = null;
       });
     }
+  }
+
+  void _editTodoDialog(int index) {
+    final TextEditingController editController = TextEditingController(
+      text: todos[index],
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Task'),
+          content: TextField(
+            controller: editController,
+            decoration: const InputDecoration(hintText: 'Add a new task'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  todos[index] = editController.text;
+                });
+                kaydetAjandaVerisi();
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteTodo(int index) {
+    setState(() {
+      todos.removeAt(index);
+      todosChecked.removeAt(index);
+      if (index < todoKategorileri.length) {
+        todoKategorileri.removeAt(index);
+      }
+    });
+    kaydetAjandaVerisi();
   }
 
   void _addPostIt() {
@@ -237,7 +362,7 @@ class _CalendarPageState extends State<CalendarPage> {
             shrinkWrap: true,
             itemCount: stickers.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
+              crossAxisCount: 6,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -250,7 +375,22 @@ class _CalendarPageState extends State<CalendarPage> {
                   });
                   Navigator.pop(context);
                 },
-                child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.4),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(2, 4), // gölge yönü
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
                   child: Text(
                     stickers[index],
                     style: const TextStyle(fontSize: 28),
@@ -295,7 +435,7 @@ class _CalendarPageState extends State<CalendarPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.save, color: Colors.black),
-            tooltip: 'Kaydet',
+            tooltip: 'Save',
             onPressed: kaydetAjandaVerisi,
           ),
           if (isDrawing)
@@ -305,7 +445,7 @@ class _CalendarPageState extends State<CalendarPage> {
                 color: Color.fromARGB(255, 131, 117, 146),
               ),
               onPressed: _undoDrawing,
-              tooltip: 'Çizimi geri al',
+              tooltip: 'Undo drawing',
             ),
         ],
       ),
@@ -314,20 +454,22 @@ class _CalendarPageState extends State<CalendarPage> {
           padding: EdgeInsets.zero,
           children: [
             const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFFBAC29A)),
+              decoration: BoxDecoration(
+                color: Color.fromARGB(245, 227, 225, 221),
+              ),
               child: Text(
-                'MyLog Menüsü',
+                ' MYLOG Menu',
                 style: TextStyle(fontSize: 24, color: Colors.white),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.highlight, color: Colors.orange),
-              title: const Text('Fosforlu Kalem'),
+              title: const Text('Highlighter'),
               onTap: _toggleDrawing,
             ),
             ListTile(
               leading: const Icon(Icons.color_lens, color: Colors.purple),
-              title: const Text('Kalem Rengini Seç'),
+              title: const Text('Select Pen Color'),
               onTap: () {
                 showModalBottomSheet(
                   context: context,
@@ -364,24 +506,24 @@ class _CalendarPageState extends State<CalendarPage> {
                 Icons.sticky_note_2_outlined,
                 color: Colors.amber,
               ),
-              title: const Text('Post-it Ekle'),
+              title: const Text('Add Post-it'),
               onTap: _addPostIt,
             ),
             ListTile(
               leading: const Icon(Icons.emoji_emotions, color: Colors.pink),
-              title: const Text('Sticker Ekle'),
+              title: const Text('Add Sticker'),
               onTap: _showStickerPicker,
             ),
             ListTile(
               leading: const Icon(Icons.home, color: Colors.green),
-              title: const Text('Ana Sayfa'),
+              title: const Text('Home'),
               onTap: () {
                 Navigator.pushNamed(context, '/home');
               },
             ),
             ListTile(
               leading: const Icon(Icons.person, color: Colors.blue),
-              title: const Text('Profil'),
+              title: const Text('Profile'),
               onTap: () {
                 // Profil sayfasına yönlendirme işlemi buraya eklenecek
               },
@@ -432,26 +574,74 @@ class _CalendarPageState extends State<CalendarPage> {
                       ),
                     ),
                     for (int i = 0; i < todos.length; i++)
-                      CheckboxListTile(
-                        value: todosChecked[i],
-                        title: Text(
-                          todos[i],
-                          style: TextStyle(
-                            decoration:
-                                todosChecked[i]
-                                    ? TextDecoration.lineThrough
-                                    : TextDecoration.none,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: CheckboxListTile(
+                              value: todosChecked[i],
+                              title: Text(
+                                todos[i],
+                                style: TextStyle(
+                                  decoration:
+                                      todosChecked[i]
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                ),
+                              ),
+                              subtitle: Text(
+                                "Category: ${i < todoKategorileri.length ? todoKategorileri[i] : 'General'}",
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  todosChecked[i] = val ?? false;
+                                });
+                                kaydetAjandaVerisi();
+                              },
+                              activeColor: Colors.green,
+                            ),
                           ),
-                        ),
-                        subtitle: Text("Kategori: ${todoKategorileri[i]}"),
-                        onChanged:
-                            (val) =>
-                                setState(() => todosChecked[i] = val ?? false),
-                        activeColor: Colors.green,
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _editTodoDialog(i); // düzenleme fonksiyonu
+                              } else if (value == 'delete') {
+                                _deleteTodo(i); // silme fonksiyonu
+                              }
+                            },
+                            itemBuilder:
+                                (context) => [
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.edit, color: Colors.blue),
+                                        SizedBox(width: 8),
+                                        Text('Edit'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Delete'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                          ),
+                        ],
                       ),
+
+                    const SizedBox(height: 20),
+
                     DropdownButton<String>(
                       value: secilenKategori,
-                      hint: const Text('Kategori Seç'),
+                      hint: const Text('Select Category'),
                       items:
                           kategoriler.map((String kategori) {
                             return DropdownMenuItem<String>(
@@ -465,20 +655,22 @@ class _CalendarPageState extends State<CalendarPage> {
                         });
                       },
                     ),
+
                     TextField(
                       controller: todoController,
                       decoration: InputDecoration(
-                        hintText: 'Yeni görev...',
+                        hintText: 'New task...',
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.add),
                           onPressed: _addTodo,
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 20),
 
                     const Text(
-                      'Notlar',
+                      'Notes',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -497,7 +689,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.all(12),
                           border: InputBorder.none,
-                          hintText: 'Bugünle ilgili notlar...',
+                          hintText: 'Notes about today...',
                         ),
                       ),
                     ),
@@ -518,6 +710,40 @@ class _CalendarPageState extends State<CalendarPage> {
                     setState(() {
                       stickerPositions[i] += details.delta;
                     });
+                  },
+                  onLongPress: () {
+                    // 🛑 Uzun basınca silme menüsü açılıyor
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text('Delete sticker'),
+                          content: const Text(
+                            'Are you sure you want to delete this sticker?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  stickerPositions.removeAt(i);
+                                  stickerTypes.removeAt(i);
+                                });
+                                Navigator.pop(context);
+                                kaydetAjandaVerisi();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
                   },
                   child: Text(
                     stickerTypes[i],
@@ -571,7 +797,7 @@ class _CalendarPageState extends State<CalendarPage> {
                           style: const TextStyle(color: Colors.black),
                           decoration: const InputDecoration(
                             border: InputBorder.none,
-                            hintText: 'Not yaz...',
+                            hintText: 'Write a note...',
                             hintStyle: TextStyle(color: Colors.black45),
                           ),
                         ),

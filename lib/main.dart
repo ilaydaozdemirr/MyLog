@@ -6,6 +6,9 @@ import 'home_page.dart';
 import 'calendar_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'journal_page.dart';
+import 'mind_map.dart';
+import 'reminder_page.dart';
+import 'notes_habit_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,6 +59,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/planner': (context) => const CalendarPage(),
         '/journal': (context) => const JournalPage(),
+        '/mindmap': (context) => const MindMapPage(),
       },
     );
   }

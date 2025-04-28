@@ -36,12 +36,16 @@ dependencies:
   intl: ^0.18.1  
   table_calendar: ^3.0.9  # <-- Bu satırı ekle
   cloud_firestore: ^4.8.2
-
+  flutter_colorpicker: ^1.0.3
   snowfall: ^0.0.2
-  
+  lottie: ^2.7.0
+  confetti: ^0.7.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  graphview: ^1.2.0
+  
+ 
 
 dev_dependencies:
   flutter_test:
@@ -78,7 +82,9 @@ flutter:
     - assets/notebook_page.png
     - assets/planner_background.png
     - assets/notebook_page.png
-    
+    - assets/_background.png
+    - assets/confetti.png
+   
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

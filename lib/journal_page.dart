@@ -74,11 +74,11 @@ class _JournalPageState extends State<JournalPage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Günlük kaydedildi ✅")));
+      ).showSnackBar(const SnackBar(content: Text("Journal Saved ✅")));
     } catch (e) {
       debugPrint("Kayıt hatası: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Kaydedilirken bir hata oluştu ❌")),
+        const SnackBar(content: Text("An error occurred while saving ❌")),
       );
     }
   }
@@ -230,20 +230,22 @@ class _JournalPageState extends State<JournalPage> {
           padding: EdgeInsets.zero,
           children: [
             const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFFBAC29A)),
+              decoration: BoxDecoration(
+                color: Color.fromARGB(245, 227, 225, 221),
+              ),
               child: Text(
-                'MyLog Menüsü',
+                'MYLOG Menu',
                 style: TextStyle(fontSize: 24, color: Colors.white),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.highlight, color: Colors.orange),
-              title: const Text('Fosforlu Kalem'),
+              title: const Text('Highlighter'),
               onTap: _toggleDrawing,
             ),
             ListTile(
               leading: const Icon(Icons.color_lens, color: Colors.purple),
-              title: const Text('Kalem Rengi'),
+              title: const Text('Select Pen Color'),
               onTap:
                   () => showModalBottomSheet(
                     context: context,
@@ -277,18 +279,25 @@ class _JournalPageState extends State<JournalPage> {
             ),
             ListTile(
               leading: const Icon(Icons.emoji_emotions, color: Colors.pink),
-              title: const Text('Sticker Ekle'),
+              title: const Text('Add Sticker'),
               onTap: _showStickerPicker,
             ),
             ListTile(
               leading: const Icon(Icons.sticky_note_2, color: Colors.amber),
-              title: const Text('Post-it Ekle'),
+              title: const Text('Add Post-it'),
               onTap: _addPostIt,
             ),
             ListTile(
               leading: const Icon(Icons.home, color: Colors.green),
-              title: const Text('Ana Sayfa'),
+              title: const Text('Home'),
               onTap: () => Navigator.pushNamed(context, '/home'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person, color: Colors.blue),
+              title: const Text('Profile'),
+              onTap: () {
+                // Profil sayfasına yönlendirme işlemi buraya eklenecek
+              },
             ),
           ],
         ),
@@ -360,7 +369,7 @@ class _JournalPageState extends State<JournalPage> {
                   controller: journalController,
                   maxLines: null,
                   decoration: const InputDecoration.collapsed(
-                    hintText: 'Bugün hissettiklerini buraya yaz...',
+                    hintText: 'Write how you felt today here...',
                   ),
                   style: const TextStyle(fontSize: 16, height: 1.8),
                 ),
@@ -419,7 +428,7 @@ class _JournalPageState extends State<JournalPage> {
                           maxLines: 5,
                           decoration: const InputDecoration(
                             border: InputBorder.none,
-                            hintText: 'Not yaz...',
+                            hintText: 'Write a note...',
                           ),
                         ),
                       ),
@@ -464,7 +473,7 @@ class _JournalPageState extends State<JournalPage> {
                 },
                 backgroundColor: Colors.deepPurple,
                 child: const Icon(Icons.insights, color: Colors.white),
-                tooltip: 'AI ile analiz et',
+                tooltip: 'Analyze with AI',
               ),
             ),
           ],
