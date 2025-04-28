@@ -4,6 +4,7 @@ import 'snowfall_widget.dart';
 import 'snowfall_page.dart';
 import 'calendar_page.dart';
 import 'journal_page.dart';
+import 'mind_map.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -33,7 +34,7 @@ class HomePage extends StatelessWidget {
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(
-                color: Color.fromARGB(255, 186, 194, 154),
+                color: Color.fromARGB(245, 227, 225, 221),
               ),
               child: Text(
                 'MyLog Menüsü',

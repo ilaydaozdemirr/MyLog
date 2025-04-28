@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page.dart';
+import 'register_page.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -12,21 +13,13 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   Future<void> signUp() async {
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      showMessage('Kayıt başarılı!');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-      );
-    } catch (e) {
-      showMessage('Kayıt hatası: $e');
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const RegisterPage()),
+    );
   }
 
   Future<void> signIn() async {
@@ -35,13 +28,13 @@ class _AuthPageState extends State<AuthPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      showMessage('Giriş başarılı!');
+      showMessage('Login Successful!');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomePage()),
       );
     } catch (e) {
-      showMessage('Giriş hatası: $e');
+      showMessage('Login Error: $e');
     }
   }
 
@@ -49,116 +42,177 @@ class _AuthPageState extends State<AuthPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _showCustomDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color iconColor,
+  }) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            backgroundColor: Colors.white,
+            title: Row(
+              children: [
+                Icon(icon, color: iconColor, size: 30),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(message, style: const TextStyle(fontSize: 16)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 💡 Drawer ekliyoruz
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: const [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(255, 186, 194, 154),
-              ),
-              child: Text(
-                'MYLOG Menüsü',
-                style: TextStyle(color: Colors.white, fontSize: 24),
-              ),
-            ),
-            ListTile(leading: Icon(Icons.home), title: Text('Anasayfa')),
-            ListTile(leading: Icon(Icons.info), title: Text('Hakkında')),
-          ],
+      // Appbar kaldırıyoruz
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/_background.png'),
+            fit: BoxFit.cover,
+          ),
         ),
-      ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 80),
 
-      // 💡 AppBar ekliyoruz ki sol üstte menü butonu çıksın
-      appBar: AppBar(
-        title: const Text('MYLOG'),
-        backgroundColor: const Color.fromARGB(255, 186, 194, 154),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-      ),
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-
-            children: [
-              Image.asset('assets/MyLogg.png', height: 180),
-              const SizedBox(height: 40),
-              const Text(
-                'Hoş Geldin!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4B3F72),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Devam etmek için giriş yap veya kayıt ol.',
-                style: TextStyle(fontSize: 16, color: Colors.black54),
-              ),
-              const SizedBox(height: 30),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'E-posta',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                Image.asset('assets/MyLogg.png', height: 180),
+                const SizedBox(height: 30),
+                const Text(
+                  'Welcome!',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4B3F72),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Şifre',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please sign in or create an account to continue.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                ),
+                const SizedBox(height: 30),
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.text,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: signIn,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF4B3F72),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-                child: const Text('Giriş Yap', style: TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(
-                onPressed: signUp,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  side: const BorderSide(
-                    color: Color.fromARGB(255, 253, 253, 255),
+                const SizedBox(height: 30),
+                ElevatedButton(
+                  onPressed: signIn,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4B3F72),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                  child: const Text('Sign In', style: TextStyle(fontSize: 16)),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: signUp,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    side: const BorderSide(color: Color(0xFF4B3F72)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Sign Up',
+                    style: TextStyle(fontSize: 16, color: Color(0xFF4B3F72)),
                   ),
                 ),
-                child: const Text(
-                  'Kayıt Ol',
-                  style: TextStyle(fontSize: 16, color: Color(0xFF4B3F72)),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () async {
+                    if (_emailController.text.isEmpty) {
+                      _showCustomDialog(
+                        title: 'Warning',
+                        message: 'Please enter your email address first.',
+                        icon: Icons.warning_amber_rounded,
+                        iconColor: Colors.orange,
+                      );
+                      return;
+                    }
+                    try {
+                      await FirebaseAuth.instance.sendPasswordResetEmail(
+                        email: _emailController.text.trim(),
+                      );
+                      _showCustomDialog(
+                        title: 'Success!',
+                        message:
+                            'Password reset link has been sent. Please check your inbox.',
+                        icon: Icons.check_circle,
+                        iconColor: Colors.green,
+                      );
+                    } catch (e) {
+                      _showCustomDialog(
+                        title: 'Error',
+                        message: 'Something went wrong. Please try again.',
+                        icon: Icons.error,
+                        iconColor: Colors.red,
+                      );
+                    }
+                  },
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4B3F72),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
