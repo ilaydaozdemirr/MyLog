@@ -53,7 +53,7 @@ class HomePage extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.note),
-              title: const Text('Notes'),
+              title: const Text('Habits and Reminders'),
               onTap: () => Navigator.pushNamed(context, '/notes'),
             ),
             ListTile(
