@@ -7,7 +7,9 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ai_ajanda"
+    
+    namespace = "com.example.ai_ajanda" 
+
     compileSdk = flutter.compileSdkVersion
     
     ndkVersion = "27.0.12077973"
@@ -15,7 +17,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        
+        isCoreLibraryDesugaringEnabled = true // ← DOĞRUSU BÖYLE
     }
 
     kotlinOptions {
@@ -46,3 +48,7 @@ flutter {
     source = "../.."
 }
 apply(plugin = "com.google.gms.google-services")
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+}
