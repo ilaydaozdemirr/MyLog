@@ -31,6 +31,26 @@
 
   <title>ai_ajanda</title>
   <link rel="manifest" href="manifest.json">
+<!-- ✅ Firebase JS SDK (COMPAT versiyonları) -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+
+<!-- ✅ Firebase config ve init -->
+<script>
+  const firebaseConfig = {
+    apiKey: "REMOVED_SECRET",
+    authDomain: "mylog-a11ee.firebaseapp.com",
+    projectId: "mylog-a11ee",
+    storageBucket: "mylog-a11ee.firebasestorage.app",
+    messagingSenderId: "520781371971",
+    appId: "1:520781371971:web:d4d9701464392e3d0ad2f6",
+    measurementId: "G-8SLGJW0EMK"
+  };
+
+  // Firebase başlatılıyor
+  firebase.initializeApp(firebaseConfig);
+</script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

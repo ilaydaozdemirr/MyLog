@@ -7,13 +7,14 @@ import 'calendar_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'journal_page.dart';
 import 'mind_map.dart';
-
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'notes_habit_page.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb için
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Firebase burada başlıyor
-
+  await dotenv.load(fileName: ".env");
   await initializeDateFormatting(
     'tr_TR',
     null,

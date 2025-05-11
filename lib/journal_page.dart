@@ -1,9 +1,10 @@
 // journal_page.dart
 import 'package:flutter/material.dart';
-
+import 'ai/ai_service.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'history_page.dart';
 
 class JournalPage extends StatefulWidget {
   const JournalPage({super.key});
@@ -14,6 +15,9 @@ class JournalPage extends StatefulWidget {
 
 class _JournalPageState extends State<JournalPage> {
   final TextEditingController journalController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0.0;
+
   final List<String> stickers = [
     '☺️',
     '😍',
@@ -47,9 +51,17 @@ class _JournalPageState extends State<JournalPage> {
 
   DateTime selectedDate = DateTime.now();
   // ✨ Buraya EKLE:
+  String _aiAnaliz = '';
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      setState(() {
+        _scrollOffset = _scrollController.offset;
+      });
+    });
+
     yukleGunlukVerisi(); // 📥 Günlük verisini bugünkü tarihle yükle
   }
 
@@ -64,6 +76,7 @@ class _JournalPageState extends State<JournalPage> {
 
       await docRef.set({
         'not': journalController.text,
+        'ai_analiz': _aiAnaliz,
         'postitler': postItTexts,
         'postitKonumlari':
             postItPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
@@ -229,14 +242,40 @@ class _JournalPageState extends State<JournalPage> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(245, 227, 225, 221),
-              ),
-              child: Text(
-                'MYLOG Menu',
-                style: TextStyle(fontSize: 24, color: Colors.white),
-              ),
+            Builder(
+              builder:
+                  (context) => Container(
+                    height: 90,
+                    color: const Color.fromARGB(245, 203, 200, 194),
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.menu, color: Colors.white),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'MYLOG Menu',
+                          style: TextStyle(fontSize: 24, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.history, color: Colors.deepPurple),
+              title: const Text('AI Analiz Geçmişi'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryPage()),
+                );
+              },
             ),
             ListTile(
               leading: const Icon(Icons.highlight, color: Colors.orange),
@@ -357,37 +396,71 @@ class _JournalPageState extends State<JournalPage> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: Container(
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/notebook_page.png'),
-                    fit: BoxFit.cover,
-                  ),
+              child: Image.asset('assets/notebook_page.png', fit: BoxFit.cover),
+            ),
+
+            SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: journalController,
+                maxLines: null,
+                decoration: const InputDecoration(
+                  hintText: 'Write how you felt today here...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.only(top: 48),
                 ),
-                padding: const EdgeInsets.all(16),
-                child: TextField(
-                  controller: journalController,
-                  maxLines: null,
-                  decoration: const InputDecoration.collapsed(
-                    hintText: 'Write how you felt today here...',
-                  ),
-                  style: const TextStyle(fontSize: 16, height: 1.8),
-                ),
+                style: const TextStyle(fontSize: 16, height: 1.8),
               ),
             ),
+
             ...stickerPositions.asMap().entries.map((entry) {
               final i = entry.key;
               final offset = entry.value;
               return Positioned(
                 left: offset.dx,
-                top: offset.dy,
+                top: offset.dy - _scrollOffset,
                 child: GestureDetector(
                   onPanUpdate:
                       (details) =>
                           setState(() => stickerPositions[i] += details.delta),
-                  child: Text(
-                    stickerTypes[i],
-                    style: const TextStyle(fontSize: 28),
+                  child: GestureDetector(
+                    onLongPress: () {
+                      showDialog(
+                        context: context,
+                        builder:
+                            (ctx) => AlertDialog(
+                              title: const Text("Remove Sticker"),
+                              content: const Text(
+                                "Do you want to delete this sticker?",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text("Cancel"),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      stickerPositions.removeAt(i);
+                                      stickerTypes.removeAt(i);
+                                    });
+                                    Navigator.pop(ctx);
+                                  },
+                                  child: const Text("Delete"),
+                                ),
+                              ],
+                            ),
+                      );
+                    },
+                    onPanUpdate:
+                        (details) => setState(
+                          () => stickerPositions[i] += details.delta,
+                        ),
+                    child: Text(
+                      stickerTypes[i],
+                      style: const TextStyle(fontSize: 28),
+                    ),
                   ),
                 ),
               );
@@ -398,57 +471,65 @@ class _JournalPageState extends State<JournalPage> {
               if (!postItVisible[i]) return const SizedBox.shrink();
               return Positioned(
                 left: offset.dx,
-                top: offset.dy,
+                top: offset.dy - _scrollOffset,
                 child: GestureDetector(
                   onPanUpdate:
                       (details) =>
                           setState(() => postItPositions[i] += details.delta),
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 140,
-                        height: 140,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow[200],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.brown),
-                        ),
-                        child: TextField(
-                          controller: TextEditingController.fromValue(
-                            TextEditingValue(
-                              text: postItTexts[i],
-                              selection: TextSelection.collapsed(
-                                offset: postItTexts[i].length,
+                  onLongPress: () {
+                    showDialog(
+                      context: context,
+                      builder:
+                          (ctx) => AlertDialog(
+                            title: const Text("Remove Post-it"),
+                            content: const Text(
+                              "Do you want to delete this post-it?",
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text("Cancel"),
                               ),
-                            ),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    postItTexts.removeAt(i);
+                                    postItPositions.removeAt(i);
+                                    postItVisible.removeAt(i);
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                                child: const Text("Delete"),
+                              ),
+                            ],
                           ),
-                          onChanged:
-                              (val) => setState(() => postItTexts[i] = val),
-                          maxLines: 5,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'Write a note...',
+                    );
+                  },
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[200],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.brown),
+                    ),
+                    child: TextField(
+                      controller: TextEditingController.fromValue(
+                        TextEditingValue(
+                          text: postItTexts[i],
+                          selection: TextSelection.collapsed(
+                            offset: postItTexts[i].length,
                           ),
                         ),
                       ),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: () => setState(() => postItVisible[i] = false),
-                          child: const CircleAvatar(
-                            radius: 10,
-                            backgroundColor: Colors.red,
-                            child: Icon(
-                              Icons.close,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+                      onChanged: (val) => setState(() => postItTexts[i] = val),
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Write a note...',
                       ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -468,7 +549,60 @@ class _JournalPageState extends State<JournalPage> {
               bottom: 20,
               right: 20,
               child: FloatingActionButton(
-                onPressed: () {
+                onPressed: () async {
+                  final text = journalController.text.trim();
+
+                  if (text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter some text to analyze.'),
+                      ),
+                    );
+                    return;
+                  }
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder:
+                        (_) => const Center(child: CircularProgressIndicator()),
+                  );
+
+                  // AI'den analiz al
+                  _aiAnaliz = await AIService.analyzeText(text);
+
+                  Navigator.of(context).pop();
+
+                  final uid = FirebaseAuth.instance.currentUser!.uid;
+                  final date = selectedDate.toIso8601String();
+
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(uid)
+                      .collection('analyses')
+                      .doc(date)
+                      .set({
+                        'analysis': _aiAnaliz,
+                        'timestamp': FieldValue.serverTimestamp(),
+                      });
+
+                  // Sonucu göster
+                  showDialog(
+                    context: context,
+                    builder:
+                        (context) => AlertDialog(
+                          title: const Text('AI Mood Analysis'),
+                          content: SingleChildScrollView(
+                            child: Text(_aiAnaliz),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        ),
+                  );
+
                   // AI ile analiz et fonksiyonu
                 },
                 backgroundColor: Colors.deepPurple,

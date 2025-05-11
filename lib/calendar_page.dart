@@ -106,7 +106,7 @@ class _CalendarPageState extends State<CalendarPage> {
         'stickerKonumlari':
             stickerPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
       });
-      // ✅ Kayıt başarılıysa mini dialog aç:
+      // Kayıt başarılıysa mini dialog aç:
       showDialog(
         context: context,
         barrierDismissible: false, // Tıklayınca hemen kapanmasın
@@ -453,15 +453,31 @@ class _CalendarPageState extends State<CalendarPage> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(245, 227, 225, 221),
-              ),
-              child: Text(
-                ' MYLOG Menu',
-                style: TextStyle(fontSize: 24, color: Colors.white),
-              ),
+            Builder(
+              builder:
+                  (context) => Container(
+                    height: 90,
+                    color: const Color.fromARGB(245, 203, 200, 194),
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.menu, color: Colors.white),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'MYLOG Menu',
+                          style: TextStyle(fontSize: 24, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
             ),
+
             ListTile(
               leading: const Icon(Icons.highlight, color: Colors.orange),
               title: const Text('Highlighter'),

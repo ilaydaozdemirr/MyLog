@@ -8,12 +8,14 @@ class Habit {
   DateTime startDate;
   int duration;
   List<bool> completedDays;
+  int order;
 
   Habit({
     required this.title,
     required this.startDate,
     required this.duration,
     required this.completedDays,
+    required this.order,
   });
 
   bool get isCompleted => completedDays.every((day) => day);
@@ -40,7 +42,11 @@ class _NotesHabitPageState extends State<NotesHabitPage> {
 
   Future<void> _loadHabits() async {
     final snapshot =
-        await FirebaseFirestore.instance.collection('habits').get();
+        await FirebaseFirestore.instance
+            .collection('habits')
+            .orderBy('order') // ✨ EKLENDİ
+            .get();
+
     final List<Habit> loadedHabits =
         snapshot.docs.map((doc) {
           final data = doc.data();
@@ -49,6 +55,7 @@ class _NotesHabitPageState extends State<NotesHabitPage> {
             startDate: DateTime.parse(data['startDate']),
             duration: data['duration'] ?? 7,
             completedDays: List<bool>.from(data['completedDays'] ?? []),
+            order: data['order'] ?? 0,
           );
         }).toList();
 
@@ -64,6 +71,19 @@ class _NotesHabitPageState extends State<NotesHabitPage> {
     super.dispose();
   }
 
+  Future<void> _updateHabitOrder(Habit habit, int newOrder) async {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('habits')
+            .where('title', isEqualTo: habit.title)
+            .where('startDate', isEqualTo: habit.startDate.toIso8601String())
+            .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      await snapshot.docs.first.reference.update({'order': newOrder});
+    }
+  }
+
   Future<void> _addHabit() async {
     if (_habitController.text.isNotEmpty) {
       Habit newHabit = Habit(
@@ -71,6 +91,7 @@ class _NotesHabitPageState extends State<NotesHabitPage> {
         startDate: DateTime.now(),
         duration: _selectedDays,
         completedDays: List.generate(_selectedDays, (index) => false),
+        order: _habits.length,
       );
 
       setState(() {
@@ -84,6 +105,30 @@ class _NotesHabitPageState extends State<NotesHabitPage> {
         'duration': newHabit.duration,
         'completedDays': newHabit.completedDays,
       });
+    }
+  }
+
+  void _moveUp(int index) async {
+    if (index > 0) {
+      setState(() {
+        final temp = _habits[index];
+        _habits[index] = _habits[index - 1];
+        _habits[index - 1] = temp;
+      });
+      await _updateHabitOrder(_habits[index], index);
+      await _updateHabitOrder(_habits[index - 1], index - 1);
+    }
+  }
+
+  void _moveDown(int index) async {
+    if (index < _habits.length - 1) {
+      setState(() {
+        final temp = _habits[index];
+        _habits[index] = _habits[index + 1];
+        _habits[index + 1] = temp;
+      });
+      await _updateHabitOrder(_habits[index], index);
+      await _updateHabitOrder(_habits[index + 1], index + 1);
     }
   }
 
@@ -296,22 +341,38 @@ class _NotesHabitPageState extends State<NotesHabitPage> {
                                 ),
                               ),
                               PopupMenuButton<String>(
-                                onSelected: (value) {
+                                onSelected: (value) async {
                                   if (value == 'move_up') {
                                     if (index > 0) {
                                       setState(() {
                                         final temp = _habits[index];
-                                        _habits.removeAt(index);
-                                        _habits.insert(index - 1, temp);
+                                        _habits[index] = _habits[index - 1];
+                                        _habits[index - 1] = temp;
                                       });
+                                      await _updateHabitOrder(
+                                        _habits[index],
+                                        index,
+                                      );
+                                      await _updateHabitOrder(
+                                        _habits[index - 1],
+                                        index - 1,
+                                      );
                                     }
                                   } else if (value == 'move_down') {
                                     if (index < _habits.length - 1) {
                                       setState(() {
                                         final temp = _habits[index];
-                                        _habits.removeAt(index);
-                                        _habits.insert(index + 1, temp);
+                                        _habits[index] = _habits[index + 1];
+                                        _habits[index + 1] = temp;
                                       });
+                                      await _updateHabitOrder(
+                                        _habits[index],
+                                        index,
+                                      );
+                                      await _updateHabitOrder(
+                                        _habits[index + 1],
+                                        index + 1,
+                                      );
                                     }
                                   } else if (value == 'delete') {
                                     _deleteHabit(habit);

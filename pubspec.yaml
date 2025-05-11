@@ -31,6 +31,8 @@ dependencies:
   flutter:
     sdk: flutter
 #alttaki iki satırı yeni ekledim.##
+  http: ^0.13.6
+  flutter_dotenv: ^5.0.2
   firebase_core: ^2.25.4
   firebase_auth: ^4.17.3
   intl: ^0.18.1  
@@ -92,6 +94,23 @@ flutter:
     - assets/notebook_page.png
     - assets/_background.png
     - assets/confetti.png
+    
+    - .env
+    - web/assets/background.png
+    - web/assets/MyLogg.png
+    - web/assets/web_gorsel.jpg
+    - web/assets/mylog_ajanda.png
+    - web/assets/snowflakess.png
+    - web/assets/mindmap.png
+    - web/assets/myLogos.png
+    - web/assets/notes.png
+    - web/assets/planner.png
+    - web/assets/journal.png
+    - web/assets/analysis.png
+    - web/assets/postit_top.png
+    
+    
+    
    
   # To add assets to your application, add an assets section, like this:
   # assets:
