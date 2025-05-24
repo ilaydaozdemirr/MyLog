@@ -42,13 +42,20 @@ dependencies:
   snowfall: ^0.0.2
   lottie: ^2.7.0
   confetti: ^0.7.0
+  fl_chart: ^0.64.0
+  pie_chart: ^5.3.2
+  cupertino_icons: ^1.0.8
+  graphview: ^1.2.0
+  percent_indicator: ^4.2.3
   
+
+
+
+
   
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  graphview: ^1.2.0
-  percent_indicator: ^4.2.2
+
   
 
 
@@ -94,6 +101,9 @@ flutter:
     - assets/notebook_page.png
     - assets/_background.png
     - assets/confetti.png
+    - assets/movies.jpg
+    - assets/travel.jpg
+    - assets/books.jpg
     
     - .env
     - web/assets/background.png
@@ -108,6 +118,7 @@ flutter:
     - web/assets/journal.png
     - web/assets/analysis.png
     - web/assets/postit_top.png
+    - web/assets/notebook_pagee.png
     
     
     

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "520781371971",
+    "project_id": "mylog-a11ee",
+    "storage_bucket": "mylog-a11ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:520781371971:android:7acd3475409e2d740ad2f6",
+        "android_client_info": {
+          "package_name": "com.example.ai_ajanda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAdAeyR7ZO3u2ZVQHf9EQ20ulLI-cLR00"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

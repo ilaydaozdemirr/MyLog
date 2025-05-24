@@ -1,19 +1,22 @@
-// journal_page.dart
 import 'package:flutter/material.dart';
-import 'ai/ai_service.dart';
+import 'ai/ai_service_web.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'history_page.dart';
+import 'package:intl/intl.dart';
+import 'dart:ui';
 
-class JournalPage extends StatefulWidget {
-  const JournalPage({super.key});
+class JournalWebPage extends StatefulWidget {
+  const JournalWebPage({super.key});
 
   @override
-  State<JournalPage> createState() => _JournalPageState();
+  State<JournalWebPage> createState() => _JournalWebPageState();
 }
 
-class _JournalPageState extends State<JournalPage> {
+const Color koyuMor = Color(0xFF24143F);
+
+class _JournalWebPageState extends State<JournalWebPage> {
   final TextEditingController journalController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   double _scrollOffset = 0.0;
@@ -77,6 +80,8 @@ class _JournalPageState extends State<JournalPage> {
   final List<Offset> postItPositions = [];
   final List<String> postItTexts = [];
   final List<bool> postItVisible = [];
+  String? hoveredItem;
+  String? hoveredLabel;
 
   bool isDrawing = false;
   Color selectedColor = Colors.yellow;
@@ -84,8 +89,58 @@ class _JournalPageState extends State<JournalPage> {
   List<Offset> currentLine = [];
 
   DateTime selectedDate = DateTime.now();
-  // ✨ Buraya EKLE:
   String _aiAnaliz = '';
+
+  Future<void> _analyzeWithAI() async {
+    final text = journalController.text.trim();
+
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter some text to analyze.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // AI'den analiz al
+    _aiAnaliz = await AIServiceWeb.analyzeText(text);
+
+    Navigator.of(context).pop();
+
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final date = selectedDate.toIso8601String();
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('analyses')
+        .doc(date)
+        .set({
+          'analysis': _aiAnaliz,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+    // Sonucu göster
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('AI Mood Analysis'),
+            content: SingleChildScrollView(child: Text(_aiAnaliz)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
 
   @override
   void initState() {
@@ -96,7 +151,161 @@ class _JournalPageState extends State<JournalPage> {
       });
     });
 
-    yukleGunlukVerisi(); // Günlük verisini bugünkü tarihle yükle
+    yukleGunlukVerisi(); // 📥 Günlük verisini bugünkü tarihle yükle
+  }
+
+  Drawer buildModernWebDrawer(BuildContext context) {
+    return Drawer(
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.85)),
+          ),
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                Container(
+                  height: 90,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.black87),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'MYLOG Menu',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+
+                _buildDrawerItem(
+                  icon: Icons.history,
+                  label: 'AI Analiz Geçmişi',
+                  onTap:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HistoryPage()),
+                      ),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.highlight,
+                  label: 'Highlighter',
+                  onTap: _toggleDrawing,
+                ),
+                _buildDrawerItem(
+                  icon: Icons.color_lens,
+                  label: 'Select Pen Color',
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (_) {
+                        return Container(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children:
+                                [
+                                  const Color.fromARGB(255, 255, 244, 141),
+                                  const Color.fromARGB(255, 195, 228, 255),
+                                  const Color.fromARGB(255, 255, 192, 213),
+                                  const Color.fromARGB(255, 58, 255, 65),
+                                  const Color.fromARGB(255, 247, 175, 170),
+                                  const Color.fromARGB(255, 181, 159, 185),
+                                  const Color.fromARGB(255, 214, 197, 254),
+                                  const Color.fromARGB(255, 175, 212, 255),
+                                ].map((color) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      _selectColor(color);
+                                      Navigator.pop(context);
+                                    },
+                                    child: CircleAvatar(
+                                      backgroundColor: color,
+                                      radius: 20,
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.emoji_emotions,
+                  label: 'Add Sticker',
+                  onTap: _showStickerPicker,
+                ),
+                _buildDrawerItem(
+                  icon: Icons.sticky_note_2,
+                  label: 'Add Post-it',
+                  onTap: _addPostIt,
+                ),
+                _buildDrawerItem(
+                  icon: Icons.home,
+                  label: 'Home',
+                  onTap: () => Navigator.pushNamed(context, '/home'),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.person,
+                  label: 'Profile',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => hoveredLabel = label);
+      },
+      onExit: (_) {
+        setState(() => hoveredLabel = null);
+      },
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          color:
+              hoveredLabel == label
+                  ? koyuMor.withOpacity(0.08)
+                  : Colors.transparent,
+          child: ListTile(
+            leading: Icon(
+              icon,
+              color: hoveredLabel == label ? Colors.white : koyuMor,
+            ),
+            title: Text(
+              label,
+              style: TextStyle(
+                color: hoveredLabel == label ? Colors.white : koyuMor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> kaydetGunlukVerisi() async {
@@ -272,109 +481,9 @@ class _JournalPageState extends State<JournalPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            Builder(
-              builder:
-                  (context) => Container(
-                    height: 90,
-                    color: const Color.fromARGB(245, 203, 200, 194),
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.menu, color: Colors.white),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'MYLOG Menu',
-                          style: TextStyle(fontSize: 24, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-            ),
+      backgroundColor: const Color.fromARGB(245, 227, 225, 221),
+      drawer: buildModernWebDrawer(context),
 
-            ListTile(
-              leading: const Icon(Icons.history, color: Colors.deepPurple),
-              title: const Text('AI Analiz Geçmişi'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const HistoryPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.highlight, color: Colors.orange),
-              title: const Text('Highlighter'),
-              onTap: _toggleDrawing,
-            ),
-            ListTile(
-              leading: const Icon(Icons.color_lens, color: Colors.purple),
-              title: const Text('Select Pen Color'),
-              onTap:
-                  () => showModalBottomSheet(
-                    context: context,
-                    builder:
-                        (context) => Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children:
-                              [
-                                    Colors.yellow,
-                                    Colors.blue,
-                                    Colors.pink,
-                                    Colors.green,
-                                    Colors.red,
-                                    Colors.purple,
-                                  ]
-                                  .map(
-                                    (color) => GestureDetector(
-                                      onTap: () {
-                                        _selectColor(color);
-                                        Navigator.pop(context);
-                                      },
-                                      child: CircleAvatar(
-                                        backgroundColor: color,
-                                        radius: 20,
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                        ),
-                  ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.emoji_emotions, color: Colors.pink),
-              title: const Text('Add Sticker'),
-              onTap: _showStickerPicker,
-            ),
-            ListTile(
-              leading: const Icon(Icons.sticky_note_2, color: Colors.amber),
-              title: const Text('Add Post-it'),
-              onTap: _addPostIt,
-            ),
-            ListTile(
-              leading: const Icon(Icons.home, color: Colors.green),
-              title: const Text('Home'),
-              onTap: () => Navigator.pushNamed(context, '/home'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person, color: Colors.blue),
-              title: const Text('Profile'),
-              onTap: () {
-                // Profil sayfasına yönlendirme işlemi buraya eklenecek
-              },
-            ),
-          ],
-        ),
-      ),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
@@ -429,25 +538,33 @@ class _JournalPageState extends State<JournalPage> {
                 : null,
         child: Stack(
           children: [
-            Positioned.fill(
-              child: Image.asset('assets/notebook_page.png', fit: BoxFit.cover),
-            ),
-
-            SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: journalController,
-                maxLines: null,
-                decoration: const InputDecoration(
-                  hintText: 'Write how you felt today here...',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.only(top: 48),
+            Center(
+              child: Container(
+                width: 800,
+                height: 1130,
+                decoration: BoxDecoration(
+                  image: const DecorationImage(
+                    image: AssetImage('web/assets/notebook_pagee.png'),
+                    fit: BoxFit.fill,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                style: const TextStyle(fontSize: 16, height: 1.8),
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: TextField(
+                    controller: journalController,
+                    maxLines: null,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Write how you felt today here...',
+                    ),
+                    style: const TextStyle(fontSize: 16, height: 1.6),
+                  ),
+                ),
               ),
             ),
 
+            //  Stickers
             ...stickerPositions.asMap().entries.map((entry) {
               final i = entry.key;
               final offset = entry.value;
@@ -458,51 +575,48 @@ class _JournalPageState extends State<JournalPage> {
                   onPanUpdate:
                       (details) =>
                           setState(() => stickerPositions[i] += details.delta),
-                  child: GestureDetector(
-                    onLongPress: () {
-                      showDialog(
-                        context: context,
-                        builder:
-                            (ctx) => AlertDialog(
-                              title: const Text("Remove Sticker"),
-                              content: const Text(
-                                "Do you want to delete this sticker?",
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text("Cancel"),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      stickerPositions.removeAt(i);
-                                      stickerTypes.removeAt(i);
-                                    });
-                                    Navigator.pop(ctx);
-                                  },
-                                  child: const Text("Delete"),
-                                ),
-                              ],
+                  onLongPress: () {
+                    showDialog(
+                      context: context,
+                      builder:
+                          (ctx) => AlertDialog(
+                            title: const Text("Remove Sticker"),
+                            content: const Text(
+                              "Do you want to delete this sticker?",
                             ),
-                      );
-                    },
-                    onPanUpdate:
-                        (details) => setState(
-                          () => stickerPositions[i] += details.delta,
-                        ),
-                    child: Text(
-                      stickerTypes[i],
-                      style: const TextStyle(fontSize: 28),
-                    ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text("Cancel"),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    stickerPositions.removeAt(i);
+                                    stickerTypes.removeAt(i);
+                                  });
+                                  Navigator.pop(ctx);
+                                },
+                                child: const Text("Delete"),
+                              ),
+                            ],
+                          ),
+                    );
+                  },
+                  child: Text(
+                    stickerTypes[i],
+                    style: const TextStyle(fontSize: 28),
                   ),
                 ),
               );
             }),
+
+            // ✅ Post-it
             ...postItPositions.asMap().entries.map((entry) {
               final i = entry.key;
               final offset = entry.value;
               if (!postItVisible[i]) return const SizedBox.shrink();
+              final controller = TextEditingController(text: postItTexts[i]);
               return Positioned(
                 left: offset.dx,
                 top: offset.dy - _scrollOffset,
@@ -549,14 +663,7 @@ class _JournalPageState extends State<JournalPage> {
                       border: Border.all(color: Colors.brown),
                     ),
                     child: TextField(
-                      controller: TextEditingController.fromValue(
-                        TextEditingValue(
-                          text: postItTexts[i],
-                          selection: TextSelection.collapsed(
-                            offset: postItTexts[i].length,
-                          ),
-                        ),
-                      ),
+                      controller: controller,
                       onChanged: (val) => setState(() => postItTexts[i] = val),
                       maxLines: 5,
                       decoration: const InputDecoration(
@@ -568,6 +675,8 @@ class _JournalPageState extends State<JournalPage> {
                 ),
               );
             }),
+
+            //  Highlighter çizim alanı
             IgnorePointer(
               ignoring: !isDrawing,
               child: CustomPaint(
@@ -579,66 +688,13 @@ class _JournalPageState extends State<JournalPage> {
                 size: Size.infinite,
               ),
             ),
+
+            // Analyze butonu
             Positioned(
               bottom: 20,
               right: 20,
               child: FloatingActionButton(
-                onPressed: () async {
-                  final text = journalController.text.trim();
-
-                  if (text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter some text to analyze.'),
-                      ),
-                    );
-                    return;
-                  }
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder:
-                        (_) => const Center(child: CircularProgressIndicator()),
-                  );
-
-                  // AI'den analiz al
-                  _aiAnaliz = await AIService.analyzeText(text);
-
-                  Navigator.of(context).pop();
-
-                  final uid = FirebaseAuth.instance.currentUser!.uid;
-                  final date = selectedDate.toIso8601String();
-
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(uid)
-                      .collection('analyses')
-                      .doc(date)
-                      .set({
-                        'analysis': _aiAnaliz,
-                        'timestamp': FieldValue.serverTimestamp(),
-                      });
-
-                  // Sonucu göster
-                  showDialog(
-                    context: context,
-                    builder:
-                        (context) => AlertDialog(
-                          title: const Text('AI Mood Analysis'),
-                          content: SingleChildScrollView(
-                            child: Text(_aiAnaliz),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Close'),
-                            ),
-                          ],
-                        ),
-                  );
-
-                  // AI ile analiz et fonksiyonu
-                },
+                onPressed: _analyzeWithAI,
                 backgroundColor: Colors.deepPurple,
                 child: const Icon(Icons.insights, color: Colors.white),
                 tooltip: 'Analyze with AI',

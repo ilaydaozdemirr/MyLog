@@ -3,20 +3,31 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ai_ajanda/calendar_web.dart';
+import 'dart:ui';
 
-class CalendarPage extends StatefulWidget {
-  const CalendarPage({super.key});
-
-  @override
-  State<CalendarPage> createState() => _CalendarPageState();
+List<String> extractHashtags(String text) {
+  final regex = RegExp(r'\B#\w\w+');
+  return regex.allMatches(text).map((e) => e.group(0)!.substring(1)).toList();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class CalendarWeb extends StatefulWidget {
+  const CalendarWeb({super.key});
+
+  @override
+  State<CalendarWeb> createState() => _CalendarWebState();
+}
+
+const Color koyuMor = Color(0xFF24143F);
+
+class _CalendarWebState extends State<CalendarWeb> {
   DateTime selectedDate = DateTime.now();
   final List<String> todos = [];
   final List<bool> todosChecked = [];
   final List<String> todoKategorileri = [];
   String? secilenKategori;
+  String? hoveredItem;
+  String? hoveredLabel;
 
   final List<String> kategoriler = [
     'Job',
@@ -106,7 +117,10 @@ class _CalendarPageState extends State<CalendarPage> {
         'stickerKonumlari':
             stickerPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
       });
-      // ✅ Kayıt başarılıysa mini dialog aç:
+
+      await saveAnalysisFromCalendar();
+      // Kayıt başarılıysa mini dialog aç:
+
       showDialog(
         context: context,
         barrierDismissible: false, // Tıklayınca hemen kapanmasın
@@ -140,9 +154,79 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  Future<void> yukleAjandaVerisi() async {
+  Future<void> saveAnalysisFromCalendar() async {
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('productivity')
+          .doc(selectedDate.toIso8601String());
+
+      final note = notesController.text;
+      final hashtags = extractHashtags(note);
+      final categoryMap = <String, int>{};
+      for (final tag in hashtags) {
+        categoryMap[tag] = (categoryMap[tag] ?? 0) + 1;
+      }
+
+      for (final kat in todoKategorileri) {
+        categoryMap[kat.toLowerCase()] =
+            (categoryMap[kat.toLowerCase()] ?? 0) + 1;
+      }
+
+      final score = calculateProductivity(
+        noteLength: note.length,
+        taskCount: todos.length,
+        usedStickers: stickerTypes.isNotEmpty,
+        usedPostIts: postItTexts.any((text) => text.trim().isNotEmpty),
+      );
+
+      await docRef.set({
+        'note': note,
+        'score': score,
+        'categories': categoryMap,
+        'stickerCount': stickerTypes.length,
+        'postItCount': postItTexts.length,
+        'taskCount': todos.length,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Analysis save error: $e');
+    }
+  }
+
+  int calculateProductivity({
+    required int noteLength,
+    required int taskCount,
+    required bool usedStickers,
+    required bool usedPostIts,
+  }) {
+    double noteScore = (noteLength.clamp(0, 500) / 500) * 40;
+    double taskScore = (taskCount / (taskCount + 2)) * 40;
+    double toolScore = 0;
+    if (usedStickers) toolScore += 10;
+    if (usedPostIts) toolScore += 10;
+
+    return (noteScore + taskScore + toolScore).round();
+  }
+
+  Future<void> yukleAjandaVerisi() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint("🚫 Kullanıcı giriş yapmamış!");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please log in or sign up first"),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      final uid = user.uid;
+
       final docRef = FirebaseFirestore.instance
           .collection('ajanda')
           .doc(uid)
@@ -152,73 +236,82 @@ class _CalendarPageState extends State<CalendarPage> {
       final snapshot = await docRef.get();
 
       if (snapshot.exists) {
-        final data = snapshot.data();
-        if (data != null) {
-          setState(() {
-            todos
-              ..clear()
-              ..addAll(List<String>.from(data['todos'] ?? []));
+        final data = snapshot.data()!;
+        debugPrint("📦 Gelen veri: $data");
 
-            todosChecked
-              ..clear()
-              ..addAll(
-                List<bool>.from(
-                  data['checked'] ?? List<bool>.filled(todos.length, false),
-                ),
-              );
+        setState(() {
+          todos
+            ..clear()
+            ..addAll(List<String>.from(data['todos'] ?? []));
 
-            todoKategorileri
-              ..clear()
-              ..addAll(
-                List<String>.from(
-                  data['kategoriler'] ??
-                      List<String>.filled(todos.length, 'Genel'),
-                ),
-              );
+          todosChecked
+            ..clear()
+            ..addAll(
+              List<bool>.from(
+                data['checked'] ??
+                    List<bool>.filled(
+                      (data['todos'] as List?)?.length ?? 0,
+                      false,
+                    ),
+              ),
+            );
 
-            notesController.text = data['notlar'] ?? '';
+          todoKategorileri
+            ..clear()
+            ..addAll(
+              List<String>.from(
+                data['kategoriler'] ??
+                    List<String>.filled(
+                      (data['todos'] as List?)?.length ?? 0,
+                      'General',
+                    ),
+              ),
+            );
 
-            postItTexts
-              ..clear()
-              ..addAll(List<String>.from(data['postitler'] ?? []));
+          notesController.text = data['notlar'] ?? '';
 
-            postItPositions
-              ..clear()
-              ..addAll(
-                List<Map<String, dynamic>>.from(
-                  data['postitKonumlari'] ?? [],
-                ).map(
-                  (e) => Offset(
-                    (e['x'] as num).toDouble(),
-                    (e['y'] as num).toDouble(),
-                  ),
-                ),
-              );
+          postItTexts
+            ..clear()
+            ..addAll(List<String>.from(data['postitler'] ?? []));
 
-            postItVisible
-              ..clear()
-              ..addAll(List<bool>.filled(postItTexts.length, true));
-            // 📌 YENİ EKLENDİ: Sticker veri yükleme
-            stickerTypes
-              ..clear()
-              ..addAll(List<String>.from(data['stickerler'] ?? []));
+          postItPositions
+            ..clear()
+            ..addAll(
+              ((data['postitKonumlari'] ?? []) as List)
+                  .whereType<Map<String, dynamic>>()
+                  .map(
+                    (e) => Offset(
+                      (e['x'] as num).toDouble(),
+                      (e['y'] as num).toDouble(),
+                    ),
+                  )
+                  .toList(),
+            );
 
-            stickerPositions
-              ..clear()
-              ..addAll(
-                List<Map<String, dynamic>>.from(
-                  data['stickerKonumlari'] ?? [],
-                ).map(
-                  (e) => Offset(
-                    (e['x'] as num).toDouble(),
-                    (e['y'] as num).toDouble(),
-                  ),
-                ),
-              );
-          });
+          postItVisible
+            ..clear()
+            ..addAll(List<bool>.filled(postItTexts.length, true));
 
-          debugPrint("✅ Ajanda verisi başarıyla yüklendi!");
-        }
+          stickerTypes
+            ..clear()
+            ..addAll(List<String>.from(data['stickerler'] ?? []));
+
+          stickerPositions
+            ..clear()
+            ..addAll(
+              ((data['stickerKonumlari'] ?? []) as List)
+                  .whereType<Map<String, dynamic>>()
+                  .map(
+                    (e) => Offset(
+                      (e['x'] as num).toDouble(),
+                      (e['y'] as num).toDouble(),
+                    ),
+                  )
+                  .toList(),
+            );
+        });
+
+        debugPrint("✅ Ajanda verisi başarıyla yüklendi!");
       } else {
         _resetAjandaVerisi();
         debugPrint("⚪ Ajanda boş, sıfırlandı.");
@@ -248,7 +341,163 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   void initState() {
     super.initState();
+    selectedDate = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
     Future.microtask(() => yukleAjandaVerisi());
+  }
+
+  Drawer buildModernWebDrawer(BuildContext context) {
+    return Drawer(
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.85)),
+          ),
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                Container(
+                  height: 90,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.black87),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'MYLOG Menu',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+
+                _buildDrawerItem(
+                  icon: Icons.highlight,
+                  label: 'Highlighter',
+
+                  onTap: _toggleDrawing,
+                ),
+                _buildDrawerItem(
+                  icon: Icons.color_lens_outlined,
+
+                  label: 'Select Pen Color',
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (_) {
+                        return Container(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children:
+                                [
+                                  const Color.fromARGB(255, 255, 244, 141),
+                                  const Color.fromARGB(255, 195, 228, 255),
+                                  const Color.fromARGB(255, 255, 192, 213),
+                                  const Color.fromARGB(255, 58, 255, 65),
+                                  const Color.fromARGB(255, 247, 175, 170),
+                                  const Color.fromARGB(255, 181, 159, 185),
+                                  const Color.fromARGB(255, 214, 197, 254),
+                                  const Color.fromARGB(255, 175, 212, 255),
+                                ].map((color) {
+                                  return GestureDetector(
+                                    onTap: () {
+                                      _selectColor(color);
+                                      Navigator.pop(context);
+                                    },
+                                    child: CircleAvatar(
+                                      backgroundColor: color,
+                                      radius: 20,
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.sticky_note_2_outlined,
+                  label: 'Add Post-it',
+                  onTap: _addPostIt,
+                ),
+                _buildDrawerItem(
+                  icon: Icons.emoji_emotions_outlined,
+                  label: 'Add Sticker',
+                  onTap: _showStickerPicker,
+                ),
+                _buildDrawerItem(
+                  icon: Icons.home_outlined,
+                  label: 'Home',
+                  onTap: () {
+                    Navigator.pushNamed(context, '/home');
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.person_outlined,
+                  label: 'Profile',
+                  onTap: () {
+                    Navigator.pushNamed(context, '/Profile');
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => hoveredLabel = label);
+      },
+      onExit: (_) {
+        setState(() => hoveredLabel = null);
+      },
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          color:
+              hoveredLabel == label
+                  ? koyuMor.withOpacity(0.08)
+                  : Colors.transparent,
+          child: ListTile(
+            leading: Icon(
+              icon,
+              color: hoveredLabel == label ? Colors.white : koyuMor,
+            ),
+            title: Text(
+              label,
+              style: TextStyle(
+                color: hoveredLabel == label ? Colors.white : koyuMor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _selectDate() async {
@@ -259,7 +508,9 @@ class _CalendarPageState extends State<CalendarPage> {
       lastDate: DateTime(2100),
     );
     if (picked != null) {
-      setState(() => selectedDate = picked);
+      setState(
+        () => selectedDate = DateTime(picked.year, picked.month, picked.day),
+      );
       await yukleAjandaVerisi();
     }
   }
@@ -449,88 +700,7 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(245, 227, 225, 221),
-              ),
-              child: Text(
-                ' MYLOG Menu',
-                style: TextStyle(fontSize: 24, color: Colors.white),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.highlight, color: Colors.orange),
-              title: const Text('Highlighter'),
-              onTap: _toggleDrawing,
-            ),
-            ListTile(
-              leading: const Icon(Icons.color_lens, color: Colors.purple),
-              title: const Text('Select Pen Color'),
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children:
-                          [
-                            Colors.yellow,
-                            Colors.blue,
-                            Colors.pink,
-                            Colors.green,
-                            Colors.red,
-                            Colors.purple,
-                          ].map((color) {
-                            return GestureDetector(
-                              onTap: () {
-                                _selectColor(color);
-                                Navigator.pop(context);
-                              },
-                              child: CircleAvatar(
-                                backgroundColor: color,
-                                radius: 20,
-                              ),
-                            );
-                          }).toList(),
-                    );
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.sticky_note_2_outlined,
-                color: Colors.amber,
-              ),
-              title: const Text('Add Post-it'),
-              onTap: _addPostIt,
-            ),
-            ListTile(
-              leading: const Icon(Icons.emoji_emotions, color: Colors.pink),
-              title: const Text('Add Sticker'),
-              onTap: _showStickerPicker,
-            ),
-            ListTile(
-              leading: const Icon(Icons.home, color: Colors.green),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pushNamed(context, '/home');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person, color: Colors.blue),
-              title: const Text('Profile'),
-              onTap: () {
-                // Profil sayfasına yönlendirme işlemi buraya eklenecek
-              },
-            ),
-          ],
-        ),
-      ),
+      drawer: buildModernWebDrawer(context),
       body: GestureDetector(
         onPanStart:
             isDrawing

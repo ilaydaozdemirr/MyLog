@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:intl/intl.dart'; // Tarih formatı için
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class Habit {
   String title;
@@ -41,10 +42,13 @@ class _HabitsWebState extends State<HabitsWeb> {
   }
 
   Future<void> _loadHabits() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
     final snapshot =
         await FirebaseFirestore.instance
             .collection('habits')
-            .orderBy('order') // ✨ EKLENDİ
+            .doc(uid)
+            .collection('users')
+            .orderBy('order') // sıraya göre çekiyoruz
             .get();
 
     final List<Habit> loadedHabits =
@@ -72,9 +76,13 @@ class _HabitsWebState extends State<HabitsWeb> {
   }
 
   Future<void> _updateHabitOrder(Habit habit, int newOrder) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     final snapshot =
         await FirebaseFirestore.instance
             .collection('habits')
+            .doc(uid)
+            .collection('users')
             .where('title', isEqualTo: habit.title)
             .where('startDate', isEqualTo: habit.startDate.toIso8601String())
             .get();
@@ -86,6 +94,8 @@ class _HabitsWebState extends State<HabitsWeb> {
 
   Future<void> _addHabit() async {
     if (_habitController.text.isNotEmpty) {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
       Habit newHabit = Habit(
         title: _habitController.text,
         startDate: DateTime.now(),
@@ -99,13 +109,17 @@ class _HabitsWebState extends State<HabitsWeb> {
         _habitController.clear();
       });
 
-      await FirebaseFirestore.instance.collection('habits').add({
-        'title': newHabit.title,
-        'startDate': newHabit.startDate.toIso8601String(),
-        'duration': newHabit.duration,
-        'completedDays': newHabit.completedDays,
-        'order': _habits.length,
-      });
+      await FirebaseFirestore.instance
+          .collection('habits')
+          .doc(uid)
+          .collection('users')
+          .add({
+            'title': newHabit.title,
+            'startDate': newHabit.startDate.toIso8601String(),
+            'duration': newHabit.duration,
+            'completedDays': newHabit.completedDays,
+            'order': newHabit.order,
+          });
     }
   }
 
@@ -134,6 +148,8 @@ class _HabitsWebState extends State<HabitsWeb> {
   }
 
   Future<void> _deleteHabit(Habit habit) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder:
@@ -157,6 +173,8 @@ class _HabitsWebState extends State<HabitsWeb> {
       final snapshot =
           await FirebaseFirestore.instance
               .collection('habits')
+              .doc(uid)
+              .collection('users')
               .where('title', isEqualTo: habit.title)
               .where('startDate', isEqualTo: habit.startDate.toIso8601String())
               .get();
@@ -182,9 +200,13 @@ class _HabitsWebState extends State<HabitsWeb> {
         habit.completedDays[dayIndex] = true;
       });
 
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+
       final snapshot =
           await FirebaseFirestore.instance
               .collection('habits')
+              .doc(uid)
+              .collection('users')
               .where('title', isEqualTo: habit.title)
               .where('startDate', isEqualTo: habit.startDate.toIso8601String())
               .get();
@@ -241,9 +263,9 @@ class _HabitsWebState extends State<HabitsWeb> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Habits and Reminders'),
-        backgroundColor: const Color.fromARGB(245, 227, 225, 221),
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: const Color.fromARGB(255, 244, 242, 242),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

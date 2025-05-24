@@ -4,13 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'home_page_web.dart'; // Web ana sayfan
 import 'auth_page_web.dart';
 import 'register_page_web.dart';
+import 'calendar_web.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(
     options: const FirebaseOptions(
-      apiKey: "REMOVED_SECRET",
+      apiKey: "AIzaSyAAdAeyR7ZO3u2ZVQHf9EQ20ulLI-cLR00",
       authDomain: "mylog-a11ee.firebaseapp.com",
       projectId: "mylog-a11ee",
       storageBucket: "mylog-a11ee.firebasestorage.app",
@@ -28,6 +29,7 @@ void main() async {
         '/': (context) => const HomePageWeb(),
         '/login': (context) => const AuthPageWeb(),
         '/register': (context) => const RegisterPageWeb(),
+        '/home': (context) => const HomePageWeb(),
       },
       builder: (context, child) {
         return Overlay(

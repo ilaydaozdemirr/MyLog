@@ -9,17 +9,14 @@ import 'journal_page.dart';
 import 'mind_map.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'notes_habit_page.dart';
+import 'analysis_page.dart';
 import 'package:flutter/foundation.dart'; // kIsWeb için
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Firebase burada başlıyor
+  await Firebase.initializeApp();
   await dotenv.load(fileName: ".env");
-  await initializeDateFormatting(
-    'tr_TR',
-    null,
-  ); // 👈 Yerel tarih formatını başlat
-
+  await initializeDateFormatting('tr_TR', null);
   runApp(const MyApp());
 }
 
@@ -62,6 +59,7 @@ class MyApp extends StatelessWidget {
         '/journal': (context) => const JournalPage(),
         '/mindmap': (context) => const MindMapPage(),
         '/notes': (context) => const NotesHabitPage(),
+        '/analysis': (context) => const AnalysisPage(),
       },
     );
   }

@@ -1,7 +1,10 @@
+import 'package:ai_ajanda/calendar_web.dart';
 import 'package:flutter/material.dart';
 import 'snowfall_widget_web.dart';
 import 'habits_web.dart';
-import 'calendar_page.dart';
+import 'calendar_web.dart';
+import 'journal_page_web.dart';
+import 'analysis_web.dart';
 
 void showMyLogDrawer(BuildContext context) {
   showGeneralDialog(
@@ -37,8 +40,6 @@ void showMyLogDrawer(BuildContext context) {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          buildBoxButton('web/assets/journal.png', ''),
-                          const SizedBox(width: 60),
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
@@ -46,7 +47,23 @@ void showMyLogDrawer(BuildContext context) {
                                 MaterialPageRoute(
                                   builder:
                                       (context) =>
-                                          const CalendarPage(), // hedef sayfa
+                                          const JournalWebPage(), // hedef sayfa
+                                ),
+                              );
+                            },
+                            child: buildBoxButton('web/assets/journal.png', ''),
+                          ),
+
+                          const SizedBox(width: 60),
+
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const CalendarWeb(), // hedef sayfa
                                 ),
                               );
                             },
@@ -76,7 +93,20 @@ void showMyLogDrawer(BuildContext context) {
                             ),
                           ),
                           const SizedBox(width: 60),
-                          buildBoxButton('web/assets/analysis.png', 'Analysis'),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AnalysisWeb(),
+                                ),
+                              );
+                            },
+                            child: buildBoxButton(
+                              'web/assets/analysis.png',
+                              'Analysis',
+                            ),
+                          ),
                         ],
                       ),
 

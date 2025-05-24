@@ -3,6 +3,14 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'home_page.dart';
+import 'monthly_goals_page.dart';
+import 'dart:ui';
+
+List<String> extractHashtags(String text) {
+  final regex = RegExp(r'\B#\w\w+');
+  return regex.allMatches(text).map((e) => e.group(0)!.substring(1)).toList();
+}
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
@@ -106,7 +114,10 @@ class _CalendarPageState extends State<CalendarPage> {
         'stickerKonumlari':
             stickerPositions.map((e) => {'x': e.dx, 'y': e.dy}).toList(),
       });
+
+      await saveAnalysisFromCalendar();
       // Kayıt başarılıysa mini dialog aç:
+
       showDialog(
         context: context,
         barrierDismissible: false, // Tıklayınca hemen kapanmasın
@@ -138,6 +149,63 @@ class _CalendarPageState extends State<CalendarPage> {
     } catch (e) {
       debugPrint("🔥 Error while saving the agenda: $e");
     }
+  }
+
+  Future<void> saveAnalysisFromCalendar() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('productivity')
+          .doc(selectedDate.toIso8601String());
+
+      final note = notesController.text;
+      final hashtags = extractHashtags(note);
+      final categoryMap = <String, int>{};
+      for (final tag in hashtags) {
+        categoryMap[tag] = (categoryMap[tag] ?? 0) + 1;
+      }
+
+      for (final kat in todoKategorileri) {
+        categoryMap[kat.toLowerCase()] =
+            (categoryMap[kat.toLowerCase()] ?? 0) + 1;
+      }
+
+      final score = calculateProductivity(
+        noteLength: note.length,
+        taskCount: todos.length,
+        usedStickers: stickerTypes.isNotEmpty,
+        usedPostIts: postItTexts.any((text) => text.trim().isNotEmpty),
+      );
+
+      await docRef.set({
+        'note': note,
+        'score': score,
+        'categories': categoryMap,
+        'stickerCount': stickerTypes.length,
+        'postItCount': postItTexts.length,
+        'taskCount': todos.length,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Analysis save error: $e');
+    }
+  }
+
+  int calculateProductivity({
+    required int noteLength,
+    required int taskCount,
+    required bool usedStickers,
+    required bool usedPostIts,
+  }) {
+    double noteScore = (noteLength.clamp(0, 500) / 500) * 40;
+    double taskScore = (taskCount / (taskCount + 2)) * 40;
+    double toolScore = 0;
+    if (usedStickers) toolScore += 10;
+    if (usedPostIts) toolScore += 10;
+
+    return (noteScore + taskScore + toolScore).round();
   }
 
   Future<void> yukleAjandaVerisi() async {
@@ -258,9 +326,25 @@ class _CalendarPageState extends State<CalendarPage> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
+
     if (picked != null) {
       setState(() => selectedDate = picked);
       await yukleAjandaVerisi();
+
+      if (picked.day == 1) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => MonthlyGoalsPage(
+                  onNext: () {
+                    // İleri tuşuna basıldığında sadece sayfayı kapat, CalendarPage açık kalacak
+                    Navigator.pop(context);
+                  },
+                ),
+          ),
+        );
+      }
     }
   }
 
@@ -450,20 +534,24 @@ class _CalendarPageState extends State<CalendarPage> {
         ],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Stack(
           children: [
-            Builder(
-              builder:
-                  (context) => Container(
+            Container(
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.85)),
+            ),
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  Container(
                     height: 90,
-                    color: const Color.fromARGB(245, 203, 200, 194),
-                    alignment: Alignment.centerLeft,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
+                    alignment: Alignment.centerLeft,
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.menu, color: Colors.white),
+                          icon: const Icon(Icons.menu, color: Colors.black87),
                           onPressed: () {
                             Navigator.of(context).pop();
                           },
@@ -471,82 +559,162 @@ class _CalendarPageState extends State<CalendarPage> {
                         const SizedBox(width: 12),
                         const Text(
                           'MYLOG Menu',
-                          style: TextStyle(fontSize: 24, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                         ),
                       ],
                     ),
                   ),
-            ),
+                  const Divider(),
 
-            ListTile(
-              leading: const Icon(Icons.highlight, color: Colors.orange),
-              title: const Text('Highlighter'),
-              onTap: _toggleDrawing,
-            ),
-            ListTile(
-              leading: const Icon(Icons.color_lens, color: Colors.purple),
-              title: const Text('Select Pen Color'),
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  builder: (context) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children:
-                          [
-                            Colors.yellow,
-                            Colors.blue,
-                            Colors.pink,
-                            Colors.green,
-                            Colors.red,
-                            Colors.purple,
-                          ].map((color) {
-                            return GestureDetector(
-                              onTap: () {
-                                _selectColor(color);
-                                Navigator.pop(context);
-                              },
-                              child: CircleAvatar(
-                                backgroundColor: color,
-                                radius: 20,
+                  // Drawer Items:
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      hoverColor: const Color.fromARGB(255, 15, 15, 15),
+                      onTap: _toggleDrawing,
+                      child: const ListTile(
+                        leading: Icon(
+                          Icons.highlight,
+                          color: Color.fromARGB(255, 36, 20, 63),
+                        ),
+                        title: Text('Highlighter'),
+                      ),
+                    ),
+                  ),
+
+                  // Select Pen Color
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      hoverColor: const Color.fromARGB(255, 15, 15, 15),
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          builder: (context) {
+                            return Container(
+                              padding: const EdgeInsets.all(20),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children:
+                                    [
+                                      const Color.fromARGB(255, 255, 244, 141),
+                                      const Color.fromARGB(255, 195, 228, 255),
+                                      const Color.fromARGB(255, 255, 192, 213),
+                                      const Color.fromARGB(255, 58, 255, 65),
+                                      const Color.fromARGB(255, 247, 175, 170),
+                                      const Color.fromARGB(255, 181, 159, 185),
+                                      const Color.fromARGB(255, 214, 197, 254),
+                                      const Color.fromARGB(255, 175, 212, 255),
+                                    ].map((color) {
+                                      return GestureDetector(
+                                        onTap: () {
+                                          _selectColor(color);
+                                          Navigator.pop(context);
+                                        },
+                                        child: CircleAvatar(
+                                          backgroundColor: color,
+                                          radius: 20,
+                                        ),
+                                      );
+                                    }).toList(),
                               ),
                             );
-                          }).toList(),
-                    );
-                  },
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.sticky_note_2_outlined,
-                color: Colors.amber,
+                          },
+                        );
+                      },
+                      child: const ListTile(
+                        leading: Icon(
+                          Icons.color_lens_outlined,
+                          color: Color.fromARGB(255, 36, 20, 63),
+                        ),
+                        title: Text('Select Pen Color'),
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      hoverColor: const Color.fromARGB(255, 15, 15, 15),
+                      onTap: _addPostIt,
+                      child: const ListTile(
+                        leading: Icon(
+                          Icons.sticky_note_2_outlined,
+                          color: Color.fromARGB(255, 36, 20, 63),
+                        ),
+                        title: Text('Add Post-it'),
+                      ),
+                    ),
+                  ),
+
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {},
+                      hoverColor: const Color.fromARGB(255, 15, 15, 15),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.emoji_emotions_outlined,
+                          color: Color.fromARGB(255, 36, 20, 63),
+                        ),
+                        title: Text('Add Sticker'),
+                        onTap: _showStickerPicker,
+                      ),
+                    ),
+                  ),
+
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context); // önce Drawer'ı kapat
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HomePage(),
+                            ),
+                          );
+                        });
+                      },
+                      hoverColor: const Color.fromARGB(255, 15, 15, 15),
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.home_outlined,
+                          color: Color.fromARGB(255, 36, 20, 63),
+                        ),
+                        title: Text('Home'),
+                      ),
+                    ),
+                  ),
+                  // Profile
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      hoverColor: const Color.fromARGB(255, 15, 15, 15),
+                      onTap: () {
+                        // Profil sayfası varsa buraya yönlendirme ekleyebilirsin
+                      },
+                      child: const ListTile(
+                        leading: Icon(
+                          Icons.person_outline,
+                          color: Color.fromARGB(255, 36, 20, 63),
+                        ),
+                        title: Text('Profile'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              title: const Text('Add Post-it'),
-              onTap: _addPostIt,
-            ),
-            ListTile(
-              leading: const Icon(Icons.emoji_emotions, color: Colors.pink),
-              title: const Text('Add Sticker'),
-              onTap: _showStickerPicker,
-            ),
-            ListTile(
-              leading: const Icon(Icons.home, color: Colors.green),
-              title: const Text('Home'),
-              onTap: () {
-                Navigator.pushNamed(context, '/home');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person, color: Colors.blue),
-              title: const Text('Profile'),
-              onTap: () {
-                // Profil sayfasına yönlendirme işlemi buraya eklenecek
-              },
             ),
           ],
         ),
       ),
+
       body: GestureDetector(
         onPanStart:
             isDrawing
@@ -573,6 +741,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   });
                 }
                 : null,
+
         child: Stack(
           children: [
             Container(color: const Color(0xFFF2F2F2)), // Arka plan katmanı
@@ -858,6 +1027,30 @@ class _CalendarPageState extends State<CalendarPage> {
           ],
         ),
       ),
+      floatingActionButton:
+          selectedDate.day == 1
+              ? Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 20, bottom: 20),
+                  child: FloatingActionButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => MonthlyGoalsPage(
+                                onNext: () => Navigator.pop(context),
+                              ),
+                        ),
+                      );
+                    },
+                    backgroundColor: Colors.deepPurple,
+                    child: const Icon(Icons.arrow_back),
+                  ),
+                ),
+              )
+              : null,
     );
   }
 }
